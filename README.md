@@ -185,3 +185,47 @@ Notes
 Testing
 
 API testing was done using Postman.
+
+---
+
+# API Testing Screenshots
+
+## Login API
+JWT token generation after successful login.
+
+![Login API](./screenshots/login.png)
+
+---
+
+## Create Student API
+Creating a new student with course assignment.
+
+![Create Student](./screenshots/signup:create.png)
+
+---
+
+## Get Student Details API
+Fetching students details along with associated course information.
+
+![Get Student](./screenshots/get-course-students.png)
+
+---
+
+## Update Student API
+Updating student details and modifying course assignment.
+
+![Update Student](./screenshots/update-student.png)
+
+---
+
+## Delete Student API
+Deleting a student record successfully.
+
+![Delete Student](./screenshots/delete-student.png)
+
+---
+
+## Authorization Check
+Attempting to access admin-only route without admin privileges.
+
+![Authorization Check](./screenshots/restricted-route.png)
