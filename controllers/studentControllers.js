@@ -1,5 +1,6 @@
 const pool = require("../config/db");
 const bcrypt = require("bcrypt");
+const jwt = require("jsonwebtoken");
 
 exports.createStudent = async (req, res) => {
   try {
@@ -32,7 +33,7 @@ exports.createStudent = async (req, res) => {
     return res.status(200).json({
       success: true,
       message: "new student created successfully",
-      student: newStudent.rows[0],
+      student: studentData,
     });
   } catch (err) {
     return res.status(500).json({
@@ -46,15 +47,15 @@ exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
     if (!email || !password) {
-      return res.status().json({
+      return res.status(400).json({
         success: false,
         message: "email and password required",
       });
     }
 
     const studentData = await pool.query(
-      "SELECT * FROM students WHERE student.email = $1",
-      { email },
+      "SELECT * FROM students WHERE email = $1",
+      [email],
     );
 
     if (studentData.rows.length === 0) {
@@ -69,15 +70,31 @@ exports.login = async (req, res) => {
     //comparing password here
     const compareResult = await bcrypt.compare(password, student.password);
 
-    if(!compareResult) {
-      return res.status().json({
+    if (!compareResult) {
+      return res.status(403).json({
         success: false,
-        message
-      })
+        message: "incorrect password entered",
+      });
     }
 
+    const token = jwt.sign(
+      {
+        student_id: student.student_id,
+        role: student.role,
+      },
+      process.env.JWT_SECRET,
+      {
+        expiresIn: "7d",
+      },
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: "user logged in",
+      token: token,
+    });
   } catch (err) {
-    return res.status().json({
+    return res.status(500).json({
       success: false,
       message: "internal server error",
       error: err.message,
@@ -88,6 +105,15 @@ exports.login = async (req, res) => {
 exports.getStudent = async (req, res) => {
   try {
     const { student_id } = req.params;
+
+    console.log(student_id, req.user.student_id);
+
+    if (student_id != req.user.student_id) {
+      return res.status(400).json({
+        success: false,
+        message: "you can only view your own profile",
+      });
+    }
 
     const result = await pool.query(
       "SELECT students.student_id,students.student_name,courses.course_name,courses.course_code FROM students JOIN courses ON students.course_id = courses.course_id WHERE students.student_id = $1",
