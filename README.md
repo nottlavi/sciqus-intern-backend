@@ -202,7 +202,7 @@ JWT token generation after successful login.
 ## Create Student API
 Creating a new student with course assignment.
 
-![Create Student](./screenshots/signup-create.png)
+![Create Student](./screenshots/signup:create.png)
 
 ---
 
