@@ -1,8 +1,11 @@
 const pool = require("../config/db");
+const bcrypt = require("bcrypt");
 
 exports.createStudent = async (req, res) => {
   try {
-    const { student_name, course_id } = req.body;
+    const { student_name, course_id, email, password, role } = req.body;
+
+    const updatedRole = req.body.role || "student";
 
     const result = await pool.query(
       "SELECT * FROM courses WHERE course_id = $1",
@@ -16,10 +19,15 @@ exports.createStudent = async (req, res) => {
       });
     }
 
+    const hashedPassword = await bcrypt.hash(password, 10);
+
     const newStudent = await pool.query(
-      "INSERT INTO students (student_name, course_id) VALUES ($1, $2) RETURNING *",
-      [student_name, course_id],
+      "INSERT INTO students (student_name, course_id, email, password, role) VALUES ($1, $2, $3, $4, $5) RETURNING *",
+      [student_name, course_id, email, hashedPassword, updatedRole],
     );
+
+    const studentData = newStudent.rows[0];
+    delete studentData.password;
 
     return res.status(200).json({
       success: true,
@@ -30,6 +38,49 @@ exports.createStudent = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: err.message,
+    });
+  }
+};
+
+exports.login = async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    if (!email || !password) {
+      return res.status().json({
+        success: false,
+        message: "email and password required",
+      });
+    }
+
+    const studentData = await pool.query(
+      "SELECT * FROM students WHERE student.email = $1",
+      { email },
+    );
+
+    if (studentData.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "no such user exists",
+      });
+    }
+
+    const student = studentData.rows[0];
+
+    //comparing password here
+    const compareResult = await bcrypt.compare(password, student.password);
+
+    if(!compareResult) {
+      return res.status().json({
+        success: false,
+        message
+      })
+    }
+
+  } catch (err) {
+    return res.status().json({
+      success: false,
+      message: "internal server error",
+      error: err.message,
     });
   }
 };
@@ -155,6 +206,48 @@ exports.updateStudentDetails = async (req, res) => {
       success: true,
       message: "student updated successfully",
       result: result.rows[0],
+    });
+  } catch (err) {
+    return res.status(500).json({
+      success: false,
+      message: "internal server error",
+      error: err.message,
+    });
+  }
+};
+
+exports.deleteStudent = async (req, res) => {
+  try {
+    const { student_id } = req.params;
+
+    if (!student_id) {
+      return res.status(404).json({
+        success: false,
+        message: "student id required to proceed with the request",
+      });
+    }
+
+    const student = await pool.query(
+      "SELECT * FROM students WHERE student_id = $1",
+      [student_id],
+    );
+
+    if (student.rowCount === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "no such student exists",
+      });
+    }
+
+    const result = await pool.query(
+      "DELETE FROM students WHERE student_id = $1 RETURNING *",
+      [student_id],
+    );
+
+    return res.status(200).json({
+      success: true,
+      message:
+        "student deleted successfully along with their course relationship",
     });
   } catch (err) {
     return res.status(500).json({
